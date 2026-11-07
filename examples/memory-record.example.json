@@ -1,0 +1,29 @@
+{
+  "note": "一条记忆的字段示例，不是可直接导入的完整 store。实际数据由插件在 DSH_HOME/memory-nebula/memories.json 里维护。",
+  "record": {
+    "id": "m_example_0001",
+    "text": "用户偏好中文回答，先给结论再展开，不喜欢大段铺垫。",
+    "summary": "",
+    "layer": "important",
+    "kind": "preference",
+    "tags": ["偏好", "表达"],
+    "pinned": false,
+    "importance": 0.9,
+    "createdAt": 1794000000000,
+    "updatedAt": 1794000000000,
+    "lastAccessAt": 0,
+    "accessCount": 0,
+    "decayStage": 0,
+    "decayedAt": 0,
+    "fadedAt": 0,
+    "rev": 1,
+    "origin": { "deviceId": "dev_example", "deviceName": "example-device" },
+    "links": []
+  },
+  "tombstone": {
+    "id": "m_example_0000",
+    "rev": 2,
+    "at": 1794000000000,
+    "by": "dev_example"
+  }
+}

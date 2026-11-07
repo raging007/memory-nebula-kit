@@ -1,0 +1,8 @@
+{
+  "role": "main",
+  "sessions": "export",
+  "sharePackage": true,
+  "syncConfig": true,
+  "intervalMinutes": 15,
+  "note": "The main device publishes portable settings (budgets, decay, sync rhythm) through config/desired.json; everyone else applies them."
+}

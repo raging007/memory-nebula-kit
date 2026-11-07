@@ -1,0 +1,8 @@
+{
+  "role": "server",
+  "sessions": "off",
+  "sharePackage": true,
+  "syncConfig": true,
+  "intervalMinutes": 15,
+  "note": "A server joins an existing data repository, applies the main device's config on first sync, and keeps session archives off so the repo stays small."
+}

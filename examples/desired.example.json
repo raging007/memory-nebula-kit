@@ -1,0 +1,26 @@
+{
+  "version": 1794070997239,
+  "from": "example-main-device",
+  "patch": {
+    "promptBudgetChars": 850,
+    "coreBudgetChars": 360,
+    "relevantBudgetChars": 460,
+    "relevantLimit": 6,
+    "minScore": 0.08,
+    "autoPromote": true,
+    "decay": {
+      "afterDays": 100,
+      "stage2Days": 200,
+      "forgetDays": 300,
+      "purgeDays": 600
+    },
+    "sync": {
+      "git": true,
+      "sharePackage": true,
+      "sessions": "export",
+      "intervalMinutes": 15,
+      "plugins": true,
+      "autoImportSessions": false
+    }
+  }
+}

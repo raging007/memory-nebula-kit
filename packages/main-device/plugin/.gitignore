@@ -1,0 +1,12 @@
+# runtime and local data
+node_modules/
+memories.json
+sync-report.json
+pairing.json
+*.log
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
