@@ -1,4 +1,4 @@
-# 主设备安装（memory-nebula main device）
+# DeepSeek 记忆星图 · 主设备安装
 
 [English](INSTALL.en.md) | **中文**
 

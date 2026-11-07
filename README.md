@@ -1,4 +1,4 @@
-# Memory nebula · 记忆星图
+# DeepSeek Memory Nebula · 记忆星图
 
 **English** | [中文](README.zh-CN.md)
 

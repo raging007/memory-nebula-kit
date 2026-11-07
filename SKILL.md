@@ -3,7 +3,7 @@ name: memory-nebula-kit
 description: Use when installing the 记忆星图 (Memory nebula) cross-device memory plugin on a DeepSeek Harness machine, either as the main device that publishes settings or as a server that joins an existing private data repository. The kit contains role-specific installers, the plugin package, and verification steps.
 ---
 
-# Memory nebula kit
+# DeepSeek Memory Nebula kit
 
 This repository ships two installers:
 
@@ -56,7 +56,7 @@ This repository ships two installers:
 
 ---
 
-# 记忆星图安装包（中文）
+# DeepSeek 记忆星图 安装包（中文）
 
 本仓库提供两个安装包：
 

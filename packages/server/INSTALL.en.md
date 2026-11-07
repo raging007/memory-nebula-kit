@@ -1,4 +1,4 @@
-# Server install (memory-nebula server)
+# DeepSeek Memory Nebula · Server install
 
 [中文](INSTALL.md) | **English**
 

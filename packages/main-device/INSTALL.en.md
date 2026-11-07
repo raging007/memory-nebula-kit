@@ -1,4 +1,4 @@
-# Main device install (memory-nebula main device)
+# DeepSeek Memory Nebula · Main device install
 
 [中文](INSTALL.md) | **English**
 

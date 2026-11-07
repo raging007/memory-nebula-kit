@@ -1,4 +1,4 @@
-# 服务器安装（memory-nebula server）
+# DeepSeek 记忆星图 · 服务器安装
 
 [English](INSTALL.en.md) | **中文**
 
