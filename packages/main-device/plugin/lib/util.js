@@ -32,6 +32,27 @@ export async function ensureDir(dir) {
   await fsp.mkdir(dir, { recursive: true })
 }
 
+/**
+ * The profile that owns this plugin: `DSH_PROFILE_DIR` when the Host exported it, otherwise the
+ * profile under `$DSH_HOME/profiles` whose bundle list or dependencies mention this plugin.
+ */
+export async function findProfileDir() {
+  const fromEnv = process.env.DSH_PROFILE_DIR
+  if (fromEnv && fromEnv.trim()) return path.resolve(fromEnv.trim())
+  const profiles = path.join(resolveDshHome(), 'profiles')
+  const entries = await fsp.readdir(profiles, { withFileTypes: true }).catch(() => [])
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const dir = path.join(profiles, entry.name)
+    const pkg = await readJson(path.join(dir, 'package.json'), null)
+    if (!pkg) continue
+    const bundles = Array.isArray(pkg.dsh?.profile?.bundles) ? pkg.dsh.profile.bundles : []
+    const deps = pkg.dependencies && typeof pkg.dependencies === 'object' ? pkg.dependencies : {}
+    if (bundles.includes('dsh-memory-nebula') || 'dsh-memory-nebula' in deps) return dir
+  }
+  return null
+}
+
 export function readJsonSync(file, fallback) {
   try {
     const raw = fs.readFileSync(file, 'utf8')

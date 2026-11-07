@@ -71,6 +71,10 @@ Save stable preferences, identity background, project conventions, important dec
 - `config/desired.json` carries `version` and `from`; the newer version publishes, the other applies without republishing, so two devices converge instead of rewriting each other forever;
 - A device that has never published (version 0) applies an established remote config, or seeds the file from its own settings when none exists.
 
+### Plugin inventory
+
+With "plugin inventory" on, every sync writes the bundle list, each plugin's user config, MCP names (without local commands), and the memory settings to `config/plugins.json` in the data repository. On another machine, `tools/apply-plugins-manifest.ps1` produces a plan: missing npm plugins (`install`), local packages to copy (`local`), items needing a decision (`skip`), and settings to apply in the UI (`configs`); `-ApplyMemory` applies the memory settings directly.
+
 ### Sessions and the plugin package
 
 - Session archives: logs idle for more than 3 minutes are copied to `sessions/<device>/`; importing only adds sessions missing locally, never overwrites, and needs a DSH restart to appear;

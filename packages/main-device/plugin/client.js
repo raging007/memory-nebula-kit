@@ -882,6 +882,16 @@ window.__ModuleLoader__.load({
             { className: 'mn-row', style: { marginTop: 10 } },
             h(
               'button',
+              { className: 'mn-chip' + (status.shareInventory ? ' on' : ''), onClick: function () { saveSync({ shareInventory: !status.shareInventory }) } },
+              status.shareInventory ? '插件清单随同步开' : '插件清单随同步关',
+            ),
+            h('span', { className: 'mn-hint' }, '开启后每次同步会把插件清单和各插件配置写到 同步夹/config/plugins.json，另一台的 agent 可据此安装与配置。'),
+          ),
+          h(
+            'div',
+            { className: 'mn-row', style: { marginTop: 10 } },
+            h(
+              'button',
               { className: 'mn-chip' + (status.git ? ' on' : ''), onClick: function () { saveSync({ git: !status.git }) } },
               status.git ? 'git 自动同步开' : 'git 自动同步关',
             ),
@@ -989,6 +999,14 @@ window.__ModuleLoader__.load({
                           : last.config.published
                             ? '发布了本机 v' + last.config.version
                             : '无变化（v' + last.config.version + '）')
+                    : null,
+                  last.inventory ? h('dt', null, '插件清单') : null,
+                  last.inventory
+                    ? h('dd', null, last.inventory.error
+                        ? last.inventory.error
+                        : last.inventory.written
+                          ? '已更新（' + (last.inventory.bundles || 0) + ' 个插件 / ' + (last.inventory.rows || 0) + ' 条配置）'
+                          : '无变化')
                     : null,
                 ),
                 last.folder && last.folder.peers

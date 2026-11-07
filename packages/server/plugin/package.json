@@ -1,6 +1,6 @@
 {
   "name": "dsh-memory-nebula",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Cross-device memory nebula: fuzzy retrieval, tiered memories that never fade, gradual compression, and an interactive star map.",
   "license": "MIT",
   "keywords": [

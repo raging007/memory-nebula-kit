@@ -1,9 +1,10 @@
 import { createRoutes } from './lib/routes.js'
 import { createStore } from './lib/store.js'
 import { createSync } from './lib/sync.js'
+import { buildInventory } from './lib/inventory.js'
 import { renderMemoryPrompt } from './lib/prompt.js'
 import { registerMemoryTools } from './lib/tools.js'
-import { ensureDir, errorText, resolveDataDir } from './lib/util.js'
+import { ensureDir, errorText, findProfileDir, resolveDataDir } from './lib/util.js'
 
 /**
  * dsh-memory-nebula — Host half.
@@ -61,7 +62,20 @@ export async function apply(ctx, config = {}) {
   const accountId = await resolveAccountId(ctx)
   if (accountId) store.setAccount(accountId)
 
-  const sync = createSync({ store, dataDir, logger })
+  const sync = createSync({
+    store,
+    dataDir,
+    logger,
+    buildInventory: async () => {
+      const profileDir = await findProfileDir()
+      return buildInventory({
+        profileDir,
+        configEditor: ctx.get('configEditor'),
+        store,
+        deviceName: store.device.name,
+      })
+    },
+  })
 
   const latestUser = new Map()
   const touchedTurn = new Map()

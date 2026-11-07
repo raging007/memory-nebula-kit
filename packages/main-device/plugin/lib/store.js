@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS = {
     sharePackage: false,
     git: false,
     syncConfig: false,
+    shareInventory: false,
   },
 }
 
@@ -98,6 +99,7 @@ function normalizeSettings(raw) {
       sharePackage: sync.sharePackage === true,
       git: sync.git === true,
       syncConfig: sync.syncConfig === true,
+      shareInventory: sync.shareInventory === true,
     },
   }
 }

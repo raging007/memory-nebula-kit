@@ -3,7 +3,7 @@ import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
-import { ensureDir, errorText, readJson, resolveDshHome, writeJsonAtomic } from './util.js'
+import { ensureDir, errorText, findProfileDir, readJson, resolveDshHome, writeJsonAtomic } from './util.js'
 
 /**
  * Cross-device sync without a server of its own:
@@ -98,7 +98,7 @@ async function listDir(dir) {
   }
 }
 
-export function createSync({ store, dataDir, logger = console }) {
+export function createSync({ store, dataDir, buildInventory = null, logger = console }) {
   const settings = () => store.getSettings()
   let lastReport = null
   let running = null
@@ -107,22 +107,6 @@ export function createSync({ store, dataDir, logger = console }) {
 
   function snapshotName() {
     return `memory-nebula.${accountKey()}.${store.device.id}.json`
-  }
-
-  async function findProfileDir() {
-    const fromEnv = process.env.DSH_PROFILE_DIR
-    if (fromEnv && fromEnv.trim()) return path.resolve(fromEnv.trim())
-    const profiles = path.join(resolveDshHome(), 'profiles')
-    for (const entry of await listDir(profiles)) {
-      if (!entry.isDirectory()) continue
-      const dir = path.join(profiles, entry.name)
-      const pkg = await readJson(path.join(dir, 'package.json'), null)
-      if (!pkg) continue
-      const bundles = Array.isArray(pkg.dsh?.profile?.bundles) ? pkg.dsh.profile.bundles : []
-      const deps = pkg.dependencies && typeof pkg.dependencies === 'object' ? pkg.dependencies : {}
-      if (bundles.includes('dsh-memory-nebula') || 'dsh-memory-nebula' in deps) return dir
-    }
-    return null
   }
 
   let profileDirCache
@@ -530,6 +514,37 @@ export function createSync({ store, dataDir, logger = console }) {
     }
   }
 
+  /**
+   * Publishes the plugin inventory (`config/plugins.json`) into the sync folder. The main device
+   * enables this; the file is only rewritten when the bundle list or a user config changes.
+   */
+  async function exportInventory(report) {
+    const folder = settings().sync.folder.trim()
+    if (!folder) {
+      report.inventory = { ok: false, skipped: '未设置同步文件夹' }
+      return
+    }
+    if (typeof buildInventory !== 'function') {
+      report.inventory = { ok: false, error: 'inventory provider missing' }
+      return
+    }
+    try {
+      const manifest = await buildInventory()
+      const file = path.join(folder, 'config', 'plugins.json')
+      const existing = await readJson(file, null)
+      const fingerprint = (doc) => JSON.stringify({ ...doc, generatedAt: undefined })
+      if (!existing || fingerprint(existing) !== fingerprint(manifest)) {
+        await ensureDir(path.dirname(file))
+        await writeJsonAtomic(file, manifest)
+        report.inventory = { ok: true, written: true, bundles: manifest.bundles?.length ?? 0, rows: manifest.rows?.length ?? 0 }
+      } else {
+        report.inventory = { ok: true, unchanged: true }
+      }
+    } catch (error) {
+      report.inventory = { ok: false, error: errorText(error) }
+    }
+  }
+
   async function run(reason = 'manual') {
     if (running) return running
     running = (async () => {
@@ -555,6 +570,7 @@ export function createSync({ store, dataDir, logger = console }) {
         if (current.sessions !== 'off') await exportSessions(report)
         if (current.autoImportSessions) report.import = await importSessions()
         if (current.sharePackage) await sharePackage(report)
+        if (current.shareInventory) await exportInventory(report)
         if (current.git) await gitPush(report)
       }
       lastReport = report
@@ -587,6 +603,7 @@ export function createSync({ store, dataDir, logger = console }) {
       autoImportSessions: current.autoImportSessions,
       plugins: current.plugins,
       sharePackage: current.sharePackage,
+      shareInventory: current.shareInventory,
       git: current.git,
       syncConfig: current.syncConfig,
       account: accountKey(),
