@@ -1,5 +1,7 @@
 # 主设备安装（memory-nebula main device）
 
+[English](INSTALL.en.md) | **中文**
+
 主设备是**配置和记忆的源头**：它把自己的可移植设置发布到 `config/desired.json`，其它设备拉取后自动应用。
 
 ## 0. 前置

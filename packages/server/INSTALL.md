@@ -1,5 +1,7 @@
 # 服务器安装（memory-nebula server）
 
+[English](INSTALL.en.md) | **中文**
+
 服务器是**加入方**：它不发布配置，只拉取主设备的记忆与 `config/desired.json`，并在首次同步时自动应用。会话归档默认关闭，避免数据仓被日志撑大。
 
 ## 0. 前置

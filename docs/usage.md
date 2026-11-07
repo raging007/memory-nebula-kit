@@ -1,98 +1,100 @@
-# 使用说明
+# Usage
 
-## 记忆是怎么进到上下文里的
+[中文](usage.zh-CN.md) | **English**
 
-每轮模型请求前，插件只拼一小块记忆放进系统提示：
+## How memories reach the context
 
-1. **核心与重要**（永不淡化）——按重要度和新鲜度取，受核心预算限制；
-2. **与当前这句话相关的**——用中文二元组 + 英文词元 + 短语/标签加成打分，取前 N 条，受相关预算限制；
-3. 末尾提示模型「需要更多用 `memory_search` 检索」。
+Before every model request the plugin assembles a small memory block into the system prompt:
 
-默认总预算 850 字（约 850 tokens 的中文）、核心 360 字、相关最多 6 条、最低相关度 0.08。面板「注入」页签可以实时预览某句话会注入什么、大概多少 tokens。
+1. **Core and important** (never faded) — ordered by importance and freshness, within the core budget;
+2. **Relevant to the current message** — scored with Han bigrams, latin words, phrase and tag bonuses, top N, within the relevant budget;
+3. A trailing hint that more detail is available through `memory_search`.
 
-## 分层与老化
+Defaults: 850 characters total (roughly 850 Chinese tokens), 360 for the core tier, at most 6 related items, minimum score 0.08. The **Injection** tab previews exactly what a given sentence would inject and the estimated tokens.
 
-| 层 | 进入条件 | 是否老化 |
+## Tiers and decay
+
+| Tier | Enters when | Decays |
 | --- | --- | --- |
-| 核心 core | 手动置顶 / `pin=true` | 永不 |
-| 重要 important | 重要度 ≥ 0.82，或普通层被反复用到（≥4 次） | 永不 |
-| 普通 normal | 默认 | 会 |
-| 淡化 faded | 老化到「只剩要点」 | 已淡化 |
+| core | pinned manually / `pin=true` | never |
+| important | importance ≥ 0.82, or a normal memory used ≥ 4 times | never |
+| normal | default | yes |
+| faded | after the last decay step | already faded |
 
-普通层的默认阶梯（面板「注入 → 老化规则」可改）：
+Default ladder for the normal tier (editable in **Injection → decay rules**):
 
-- 100 天：第一次抽取式精简（长文压到约 170 字）；
-- 200 天：二次精简（约 90 字）；
-- 300 天：只剩要点（正文清空，仍可被检索到，星图上变暗）；
-- 再 600 天：彻底清除（留墓碑，防止同步把旧记录带回来）。
+- 100 days: first extractive compression (long text down to ~170 characters);
+- 200 days: second compression (~90 characters);
+- 300 days: key points only (body cleared, still searchable, dimmed in the star map);
+- after another 600 days: purged, leaving a tombstone so sync cannot resurrect it.
 
-被检索、读取、注入都会刷新「最近使用」，常用的记忆不会淡掉。编辑正文也会重置老化计时。
+Retrieval, reads and injections refresh the "last used" clock, so memories you actually use do not fade. Editing the body also resets the clock.
 
-## 工具
+## Tools
 
-| 工具 | 用途 |
+| Tool | Purpose |
 | --- | --- |
-| `memory_save` | 写入一条记忆；`tags`、`importance`（0-1）、`pin` 可选 |
-| `memory_search` | 模糊检索，按相关度/层级/新鲜度排序，返回 id、日期、层级、摘要 |
-| `memory_get` | 按 id 读全文与元信息 |
-| `memory_update` | 改正文/标签/重要度/置顶/层级 |
-| `memory_forget` | 删除（不可撤销） |
+| `memory_save` | Store a memory; optional `tags`, `importance` (0-1), `pin` |
+| `memory_search` | Fuzzy search ranked by relevance, tier and freshness; returns id, date, tier, excerpt |
+| `memory_get` | Read the full text and metadata by id |
+| `memory_update` | Change body, tags, importance, pin, tier |
+| `memory_forget` | Delete (irreversible) |
 
-建议的用法：稳定的偏好、身份背景、项目约定、重要决定和待办才记；寒暄、临时状态、一次性的中间过程不要记。每条记忆自带主语和结论，别依赖当时的对话。
+Save stable preferences, identity background, project conventions, important decisions and commitments. Do not save small talk, transient state, or one-off intermediate steps. Each memory should stand on its own with an explicit subject and conclusion.
 
-## 面板
+## Panel
 
-- **星图**：节点大小=重要度，颜色=层级，位置=层级环 + 标签/显式关联的连边；点击看详情、就地编辑。
-- **记忆**：搜索、按层筛选、手动添加、行内编辑、设/取消核心、遗忘；核心与重要单独成组。
-- **跨设备**：同步文件夹、对端地址、git 自动同步、插件包随同步夹、配置随同步、立即同步、上次同步报告。
-- **注入**：预算滑杆、老化规则、即时预览与 token 估算。
+- **Star map**: node size = importance, color = tier, position = tier ring plus tag/link edges; click for details and edit in place.
+- **Memories**: search, filter by tier, add, edit inline, pin/unpin, forget; core and important are grouped separately.
+- **Devices**: sync folder, peer URL, git auto-sync, share package, sync config, sync now, last report.
+- **Injection**: budget sliders, decay rules, live preview with a token estimate.
 
-## 同步机制
+## Sync
 
-### 通道
+### Channels
 
-1. **同步文件夹**：任意云盘 / Syncthing 目录，每台设备写一份 `memory-nebula.<账号>.<设备>.json`，按记录合并。
-2. **对端地址**：`http://<IP>:<端口>` + 同步令牌，适合同一局域网。
-3. **git 仓库**：把同步文件夹换成私有仓库的 clone，插件自动 `pull → commit → push`，适合跨网络、不依赖云盘。
+1. **Shared folder**: any cloud drive or Syncthing folder; each device writes `memory-nebula.<account>.<device>.json` and records merge.
+2. **Peer URL**: `http://<ip>:<port>` plus the sync token; best on the same LAN.
+3. **Git repository**: point the sync folder at a private repository clone; the plugin runs `pull → commit → push` automatically, which works across networks without a cloud client.
 
-### 合并规则
+### Merge rules
 
-- 每条记忆有 `rev`；`rev` 高者胜，`updatedAt` 破平；
-- 删除写墓碑，墓碑版本高则对方也删；
-- 两台同时改同一条：后改的覆盖先改的（不会拼接两段文字）；
-- 每台设备只写自己的快照文件，所以正常情况下 git 不会冲突。
+- Each memory carries a `rev`; the higher rev wins, `updatedAt` breaks a tie;
+- Deletions write tombstones with a rev, so the other device deletes too;
+- Concurrent edits to the same memory: last writer wins (text is replaced, never concatenated);
+- Each device writes only its own snapshot file, so git normally never conflicts.
 
-### 配置同步
+### Config sync
 
-- 可移植项：注入预算、相关条数/阈值、老化天数、`git/sharePackage/sessions/intervalMinutes/plugins/autoImportSessions`；
-- 不可移植项：`folder`、对端、令牌、`enabled`、配置同步开关本身；
-- `config/desired.json` 带 `version` 和 `from`；版本新的一方发布，另一方应用且不回写，避免来回覆盖；
-- 首次启用的设备（版本 0）若仓库已有配置就应用它，没有才用自己的设置打底。
+- Portable: injection budgets, relevant limit/threshold, decay days, `git/sharePackage/sessions/intervalMinutes/plugins/autoImportSessions`;
+- Device-local: `folder`, peers, token, `enabled`, and the config-sync switch itself;
+- `config/desired.json` carries `version` and `from`; the newer version publishes, the other applies without republishing, so two devices converge instead of rewriting each other forever;
+- A device that has never published (version 0) applies an established remote config, or seeds the file from its own settings when none exists.
 
-### 会话与插件包
+### Sessions and the plugin package
 
-- 会话归档：空闲 3 分钟以上的日志复制到 `sessions/<设备>/`，导入只补本地没有的、绝不覆盖，导入后重启 DSH 才可见；
-- 插件包：开启「插件包随同步夹」后，插件代码复制到 `plugins/memory-nebula/`，另一台可直接从那里安装，不用再传 zip。
+- Session archives: logs idle for more than 3 minutes are copied to `sessions/<device>/`; importing only adds sessions missing locally, never overwrites, and needs a DSH restart to appear;
+- Plugin package: with "share package" on, the bundle is copied to `plugins/memory-nebula/`, so another device can install from the repository instead of a hand-copied zip.
 
-## 数据与备份
+## Data and backup
 
-- 本机：`DSH_HOME/memory-nebula/memories.json`（记忆、设备 ID、账号 ID、同步令牌、本机设置）与 `sync-report.json`；
-- 远端：你的私有数据仓；
-- 备份：保留数据仓即可；不要手工编辑 `memories.json`，运行中会被内存状态覆盖。
+- Local: `DSH_HOME/memory-nebula/memories.json` (memories, device id, account id, sync token, local settings) and `sync-report.json`;
+- Remote: your private data repository;
+- Backup: keep the data repository. Do not hand-edit `memories.json` while DSH runs; the in-memory store overwrites it.
 
-## 常见问题
+## FAQ
 
-**Q：搜索不到某条记忆？**
-换一组关键词；没有命中不代表没发生过。被淡化的记忆只有要点，正文已按规则清除。
+**A memory is not found.**
+Try different keywords; no hit does not mean it never happened. Faded memories keep only key points by design.
 
-**Q：注入太多/太少？**
-调「注入」里的总预算、核心预算、相关条数、最低相关度；改完立即生效。
+**Too much or too little injection.**
+Adjust total budget, core budget, relevant limit and minimum score in the Injection tab; changes apply immediately.
 
-**Q：两台记忆不一致？**
-看「上次同步」的 `合并` 和 `git` 状态；`git.ok=false` 时按错误处理凭据或网络，下一轮会自动重试。
+**Two devices disagree.**
+Check the merge and git status in the last sync report. When `git.ok=false`, fix credentials or network; the next cycle retries.
 
-**Q：服务器要一直开着吗？**
-只有它参与同步时才需要 DSH 在运行；关了就是暂停，下次启动继续。
+**Does the server need to stay on?**
+Only while it participates in sync. Closing DSH pauses it; the next start continues.
 
-**Q：数据仓能公开吗？**
-不能。里面是记忆明文，公开等于泄露。公开的只有本仓库（插件与脚本）。
+**Can the data repository be public?**
+No. It holds plaintext memories. Only this kit repository is public.

@@ -1,83 +1,85 @@
-# 记忆星图 · Memory nebula
+# Memory nebula · 记忆星图
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的跨设备长期记忆插件。分「主设备」和「服务器」两个安装包：主设备负责产出记忆与配置，服务器加入后自动跟进。记忆数据放在你自己的**私有** GitHub 仓库里，通过 git 同步；这个公开仓库只放插件与安装脚本，不含任何个人数据。
+**English** | [中文](README.zh-CN.md)
 
-- 模糊检索、按需注入，不把整库塞进上下文；
-- 核心 / 重要 / 普通 / 淡化四层，重要记忆永不淡化；
-- 默认 100 / 200 / 300 / 600 天逐级精简与遗忘（可在面板改）；
-- 记忆星图可视化、记忆管理、注入预览、跨设备同步；
-- 预算、老化、同步节奏等可移植配置会随同步自动对齐。
+Cross-device long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It ships as two packages: a **main device** that produces memories and configuration, and a **server** that joins and follows. Memories live in your own **private** GitHub repository and travel over git; this public repository contains only the plugin and installers, never personal data.
 
-## 两个包分别装
+- Fuzzy recall injected on demand — the whole store never enters the context;
+- Four tiers: core / important / normal / faded; important memories never fade;
+- Gradual compression and forgetting at 100 / 200 / 300 / 600 days by default (editable in the panel);
+- Star-map visualization, memory manager, injection preview, cross-device sync;
+- Portable settings (budgets, decay, sync rhythm) converge automatically across devices.
 
-主设备（先装）：
+## Install the two packages
+
+Main device (install first):
 
 ```powershell
 New-Item -ItemType Directory C:\dsh\main -Force | Out-Null
 gh release download v0.2.0 -R raging007/memory-nebula-kit -p 'memory-nebula-main-device.zip' -D C:\dsh --clobber
 Expand-Archive C:\dsh\memory-nebula-main-device.zip C:\dsh\main -Force
 gh repo create dsh-memory-data --private --add-readme
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\dsh\main\bootstrap.ps1 -Role main -DataRepo https://github.com/<你的账号>/dsh-memory-data.git
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\dsh\main\bootstrap.ps1 -Role main -DataRepo https://github.com/<your-account>/dsh-memory-data.git
 ```
 
-服务器（后装，`-DataRepo` 填主设备建的那个私有仓库）：
+Server (install later; `-DataRepo` is the private repository the main device created):
 
 ```powershell
 New-Item -ItemType Directory C:\dsh\server -Force | Out-Null
 gh release download v0.2.0 -R raging007/memory-nebula-kit -p 'memory-nebula-server.zip' -D C:\dsh --clobber
 Expand-Archive C:\dsh\memory-nebula-server.zip C:\dsh\server -Force
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\dsh\server\bootstrap.ps1 -Role server -DataRepo https://github.com/<你的账号>/dsh-memory-data.git
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\dsh\server\bootstrap.ps1 -Role server -DataRepo https://github.com/<your-account>/dsh-memory-data.git
 ```
 
-两个脚本都会打印一行 JSON，`ok:true` 时继续；把 `pluginDir` 交给 DSH 里的 agent：
+Each script prints a JSON line. When `ok:true`, hand the `pluginDir` to the agent in your DSH session:
 
-> 用 plugin_manager 的 install_bundle 安装 `C:\dsh\plugins\memory-nebula`，装完告诉我 fiberPhase 是不是 active。
+> Install the local bundle at `C:\dsh\plugins\memory-nebula` with plugin_manager's install_bundle, then tell me whether fiberPhase is active.
 
-然后按各自包里的 `INSTALL.md` 配置同步（一次）。没有 `gh` 的话，到 Releases 页面手动下载 zip 解压，命令同理。
+Then follow the package's `INSTALL.md` to configure sync (one time). Without `gh`, download the zips from the Releases page and expand them manually; the rest is identical.
 
-## 它怎么工作
+## How it works
 
 ```
-主设备 DSH ── 插件 ── 记忆库(本机) ──┐
-                                  ├─ 私有数据仓 dsh-memory-data（git）
-服务器 DSH ── 插件 ── 记忆库(本机) ──┘
+main DSH ── plugin ── local memory store ──┐
+                                          ├─ private data repo dsh-memory-data (git)
+server DSH ─ plugin ── local memory store ─┘
 ```
 
-- 每台设备的记忆都存在本机 `DSH_HOME/memory-nebula/memories.json`；
-- 同步时每台设备写一份自己的快照到数据仓，`pull → 合并 → commit → push`；
-- 合并按记录版本（`rev`）走，删除用墓碑传播，不需要常开服务器；
-- 可移植配置走 `config/desired.json`，版本新的一方胜，另一方应用但不回写，不会来回覆盖；
-- `folder`、对端地址、同步令牌、开关这些本机项**不参与**配置同步。
+- Every device keeps its memories in `DSH_HOME/memory-nebula/memories.json`;
+- On sync each device writes its own snapshot into the data repo and runs `pull → merge → commit → push`;
+- Merge is per record (`rev`), deletions travel as tombstones, and no always-on server is required;
+- Portable settings travel through `config/desired.json`; the newer version wins and the receiver applies it without republishing, so devices converge instead of rewriting each other;
+- `folder`, peer URLs, sync tokens, and the enable switches stay device-local and are never synced.
 
-## 怎么用
+## Using it
 
-安装并配置同步后，刷新页面（Ctrl+R），左栏出现「记忆星图」：
+After installing and configuring sync, refresh the page (Ctrl+R) and click **记忆星图** in the left rail:
 
-| 页签 | 作用 |
+| Tab | What it does |
 | --- | --- |
-| 星图 | 按层级分布的星图，核心金色光晕、淡化变暗；滚轮缩放、拖动平移、点击看详情 |
-| 记忆 | 搜索、按层筛选、手动添加、编辑、设/取消核心、遗忘 |
-| 跨设备 | 同步文件夹 / 对端地址、git 自动同步、插件包随同步夹、配置随同步、立即同步 |
-| 注入 | 调注入预算与老化规则，实时预览「这一轮会注入什么、约多少 tokens」 |
+| Star map | Nodes arranged by tier; core glows, faded dims; wheel to zoom, drag to pan, click for details |
+| Memories | Search, filter by tier, add, edit, pin as core, forget |
+| Devices | Sync folder, peer URL, git auto-sync, share package, sync config, sync now |
+| Injection | Tune budgets and decay, preview exactly what the next turn will inject and roughly how many tokens |
 
-模型侧有五个工具：`memory_save`、`memory_search`、`memory_get`、`memory_update`、`memory_forget`。你可以直接说「记住……」「以后回答先给结论」「忘掉那条关于 X 的」，它会按工具定义落库。
+The model gets five tools: `memory_save`, `memory_search`, `memory_get`, `memory_update`, `memory_forget`. You can simply say "remember that…", "answer with the conclusion first from now on", or "forget the note about X".
 
-**分层与老化**：核心（置顶）与重要（重要度 ≥ 0.82 或反复被用到）不参与老化；普通记忆默认 100 天第一次精简、200 天二次、300 天只剩要点、再 600 天彻底清除；被检索/读取/注入会刷新「最近使用」。
+**Tiers and decay**: core (pinned) and important (importance ≥ 0.82, or promoted after repeated use) never decay; normal memories are compressed at 100 days, compressed again at 200, reduced to key points at 300, and purged after another 600. Retrieval, reads and injections refresh the "last used" clock.
 
-更多细节见 [docs/usage.md](docs/usage.md)。
+Details: [docs/usage.md](docs/usage.md).
 
-## 前置条件
+## Requirements
 
-- DSH 桌面版 **0.2.x**（Windows / macOS 均可，示例用 PowerShell）；
-- `git`；私有仓库需要 `gh` 已登录（`gh auth login` + `gh auth setup-git`）；
-- 主设备与服务器登录**同一个 DeepSeek 账号**；
-- 数据仓保持**私有**——里面是记忆明文。
+- DSH desktop **0.2.x** (Windows or macOS; examples use PowerShell);
+- `git`; for private repositories `gh` logged in (`gh auth login` + `gh auth setup-git`);
+- The main device and the server must be signed in to the **same DeepSeek account**;
+- Keep the data repository **private** — it stores plaintext memories.
 
-## 隐私
+## Privacy
 
-- 本仓库不含任何人的记忆、账号 ID、令牌或本机路径；
-- 数据仓由每个使用者自己创建，权限自己掌握；
-- 插件本身不保存 GitHub token，git 凭据走系统（`gh` 的 credential helper）；
-- 卸载插件不会删除本机记忆；数据仓删了才是真的没了。
+- This repository contains no one's memories, account IDs, tokens, or machine paths;
+- Each user creates their own data repository and controls its access;
+- The plugin never stores a GitHub token; git credentials stay in the system credential helper (`gh`);
+- Uninstalling the plugin does not delete local memories; deleting the data repository is what removes them.
 
-MIT License，见 [LICENSE](LICENSE)。
+MIT License — see [LICENSE](LICENSE).
