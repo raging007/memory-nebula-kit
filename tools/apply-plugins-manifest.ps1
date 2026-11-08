@@ -76,8 +76,8 @@ foreach ($row in @($doc.rows)) {
   if (-not $row.portableConfig) { continue }
   $config = $row.config
   if (-not $config) { continue }
-  $keys = @($config.PSObject.Properties.Name)
-  if ($keys.Count -eq 0) { continue }
+  $props = @($config.PSObject.Properties)
+  if ($props.Count -eq 0) { continue }
   $configs += @{ id = $row.id; name = $row.name; config = $config; apply = 'settings-ui' }
 }
 
