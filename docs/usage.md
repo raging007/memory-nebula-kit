@@ -77,7 +77,7 @@ With "plugin inventory" on, every sync writes the bundle list, each plugin's use
 
 ### Sessions and the plugin package
 
-- Session archives: logs idle for more than 3 minutes are copied to `sessions/<device>/`; importing only adds sessions missing locally, never overwrites, and needs a DSH restart to appear;
+- Session archives: logs idle for more than 3 minutes are copied to `sessions/<device>/`; imported sessions go into a separate folder (default `DSH_HOME/synced-sessions`, configurable to a workspace folder) and never mix with this machine's own sessions; enable "also add to the DSH session list" to copy them into DSH, which needs a restart;
 - Plugin package: with "share package" on, the bundle is copied to `plugins/memory-nebula/`, so another device can install from the repository instead of a hand-copied zip.
 
 ## Data and backup

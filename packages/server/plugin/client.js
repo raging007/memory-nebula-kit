@@ -125,6 +125,10 @@ window.__ModuleLoader__.load({
       '.mn-legend span{display:flex;align-items:center;gap:5px}',
       '.mn-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}',
       '.mn-map-hint{position:absolute;right:14px;bottom:12px;font-size:11px;color:var(--dsw-alias-label-secondary);pointer-events:none}',
+      '.mn-tip{position:absolute;z-index:5;max-width:240px;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:9px 11px;box-shadow:0 10px 28px rgba(0,0,0,.28);pointer-events:none;font-size:12px;line-height:1.55;color:var(--dsw-alias-label-primary)}',
+      '.mn-tip-head{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:11px;margin-bottom:4px;flex-wrap:wrap}',
+      '.mn-tip-text{white-space:pre-wrap;word-break:break-word}',
+      '.mn-tip-tags{margin-top:5px;font-size:11px;color:var(--dsw-alias-label-secondary);opacity:.85}',
       '.mn-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);font-size:13px;text-align:center;padding:30px}',
       '.mn-card{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px}',
       '.mn-card+.mn-card{margin-top:12px}',
@@ -278,6 +282,9 @@ window.__ModuleLoader__.load({
       var viewRef = useRef({ scale: 1, tx: 0, ty: 0 })
       var dragRef = useRef(null)
       var hoverRef = useRef(null)
+      var hoverState = useState(null)
+      var hoverInfo = hoverState[0]
+      var setHoverInfo = hoverState[1]
       var layout = useMemo(function () {
         return layoutGraph(graph || { nodes: [], edges: [] })
       }, [graph])
@@ -293,6 +300,7 @@ window.__ModuleLoader__.load({
         }
         var ctx = canvas.getContext('2d')
         if (!ctx) return
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         var colors = readColors()
         var w = rect.width
         var hgt = rect.height
@@ -425,6 +433,7 @@ window.__ModuleLoader__.load({
 
       function onPointerDown(event) {
         var found = locate(event)
+        setHoverInfo(null)
         dragRef.current = { x: event.clientX, y: event.clientY, tx: viewRef.current.tx, ty: viewRef.current.ty, moved: false, node: found && found.node }
         event.currentTarget.classList.add('dragging')
         event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -449,6 +458,11 @@ window.__ModuleLoader__.load({
         if ((next && next.id) !== (previous && previous.id)) {
           hoverRef.current = next
           draw()
+        }
+        if (found && found.node) {
+          setHoverInfo({ node: found.node, x: found.x, y: found.y, width: found.rect.width })
+        } else {
+          setHoverInfo(null)
         }
       }
 
@@ -477,10 +491,34 @@ window.__ModuleLoader__.load({
           onPointerUp: onPointerUp,
           onPointerLeave: function () {
             hoverRef.current = null
+            setHoverInfo(null)
             draw()
           },
           onWheel: onWheel,
         }),
+        hoverInfo
+          ? h(
+              'div',
+              {
+                className: 'mn-tip',
+                style: {
+                  left: (hoverInfo.x + 264 > hoverInfo.width ? hoverInfo.x - 250 : hoverInfo.x + 14) + 'px',
+                  top: (hoverInfo.y + 14) + 'px',
+                },
+              },
+              h(
+                'div',
+                { className: 'mn-tip-head' },
+                h('span', { className: 'mn-badge ' + hoverInfo.node.layer }, layerLabel(hoverInfo.node.layer)),
+                h('span', null, hoverInfo.node.createdAt ? date(hoverInfo.node.createdAt) : ''),
+                h('span', null, '重要度 ' + Math.round((hoverInfo.node.importance || 0) * 100) / 100),
+              ),
+              h('div', { className: 'mn-tip-text' }, hoverInfo.node.preview || hoverInfo.node.label || ''),
+              hoverInfo.node.tags && hoverInfo.node.tags.length
+                ? h('div', { className: 'mn-tip-tags' }, hoverInfo.node.tags.join(' · '))
+                : null,
+            )
+          : null,
         (layout.nodes.length === 0
           ? h('div', { className: 'mn-empty' }, '还没有记忆。\n跟助手说几件值得长期记住的事，或者在这个面板里手动添加一条。')
           : null),
@@ -734,6 +772,8 @@ window.__ModuleLoader__.load({
       var [folder, setFolder] = useState('')
       var [report, setReport] = useState(null)
       var [peer, setPeer] = useState({ name: '', url: '', token: '' })
+      var [sessionsDir, setSessionsDir] = useState('')
+      var [sessionsIntoDsh, setSessionsIntoDsh] = useState(false)
       var onChanged = props.onChanged
 
       var load = useCallback(function () {
@@ -741,6 +781,8 @@ window.__ModuleLoader__.load({
           .then(function (body) {
             setStatus(body.status)
             setFolder(body.status.folder || '')
+            setSessionsDir(body.status.sessionsDir || '')
+            setSessionsIntoDsh(body.status.sessionsIntoDsh === true)
             setError(null)
           })
           .catch(function (e) { setError(String(e.message || e)) })
@@ -753,6 +795,8 @@ window.__ModuleLoader__.load({
         post('/api/sync', { action: 'settings', patch: patch })
           .then(function (body) {
             setStatus(body.status)
+            if (typeof body.status.sessionsDir === 'string') setSessionsDir(body.status.sessionsDir)
+            setSessionsIntoDsh(body.status.sessionsIntoDsh === true)
             setBusy(false)
             onChanged()
           })
@@ -782,7 +826,7 @@ window.__ModuleLoader__.load({
         setBusy(true)
         post('/api/sync', { action: 'import-sessions' })
           .then(function (body) {
-            setReport({ sessions: body.result })
+            setReport({ import: body.result })
             setStatus(body.status)
             setBusy(false)
           })
@@ -863,6 +907,24 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'mn-field' },
+              h('label', null, '同步会话存放目录'),
+              h(
+                'div',
+                { className: 'mn-row' },
+                h('input', { className: 'mn-input', value: sessionsDir, placeholder: status.sessionsDirResolved || '默认：DSH_HOME/synced-sessions', onChange: function (e) { setSessionsDir(e.target.value) } }),
+                h('button', { className: 'mn-btn', disabled: busy, onClick: function () { saveSync({ sessionsDir: sessionsDir }) } }, '保存目录'),
+              ),
+              h('span', { className: 'mn-hint' }, '导入的其他设备会话放在这里（' + (status.sessionsDirResolved || '') + '），单独成树，不混进主家会话。'),
+            ),
+            h(
+              'div',
+              { className: 'mn-row', style: { marginTop: 10 } },
+              h('button', { className: 'mn-chip' + (sessionsIntoDsh ? ' on' : ''), onClick: function () { saveSync({ sessionsIntoDsh: !sessionsIntoDsh }) } }, sessionsIntoDsh ? '同时装进 DSH 会话列表' : '只放独立目录'),
+              h('span', { className: 'mn-hint' }, '打开后除了存到独立目录，还会复制进 DSH 会话库；两种方式都需要重启 DSH 才能看到。'),
+            ),
+            h(
+              'div',
+              { className: 'mn-field' },
               h('label', null, '插件清单'),
               h('button', { className: 'mn-chip' + (status.plugins ? ' on' : ''), onClick: function () { saveSync({ plugins: !status.plugins }) } }, status.plugins ? '随快照同步' : '不同步'),
             ),
@@ -912,7 +974,7 @@ window.__ModuleLoader__.load({
             { className: 'mn-row', style: { marginTop: 14 } },
             h('button', { className: 'mn-btn primary', disabled: busy, onClick: run }, busy ? '同步中…' : '立即同步'),
             h('button', { className: 'mn-btn', disabled: busy, onClick: importSessions }, '导入其他设备的会话'),
-            h('span', { className: 'mn-hint' }, '导入的会话需要重启 DSH 后才会出现在侧栏。'),
+            h('span', { className: 'mn-hint' }, '导入的会话存到上面的独立目录；打开「同时装进 DSH 会话列表」时还要重启 DSH 才会出现在侧栏。'),
           ),
           error ? h('div', { className: 'mn-err', style: { marginTop: 8 } }, error) : null,
         ),
@@ -989,7 +1051,8 @@ window.__ModuleLoader__.load({
                   last.sessions && last.sessions.exported ? h('dt', null, '会话导出') : null,
                   last.sessions && last.sessions.exported ? h('dd', null, last.sessions.exported.length + ' 个（跳过写入中的 ' + (last.sessions.skipped || 0) + ' 个）') : null,
                   last.import && last.import.imported ? h('dt', null, '会话导入') : null,
-                  last.import && last.import.imported ? h('dd', null, last.import.imported.length + ' 个，重启后可见') : null,
+                  last.import && last.import.imported ? h('dd', null, last.import.imported.length + ' 个 → ' + (last.import.folder || '') + (last.import.restartRequired ? '（重启后可见）' : '（独立目录）')) : null,
+                  last.import && last.import.error ? h('dd', null, last.import.error) : null,
                   last.config ? h('dt', null, '配置') : null,
                   last.config
                     ? h('dd', null, last.config.error

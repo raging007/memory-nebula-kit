@@ -7,7 +7,7 @@ Cross-device long-term memory for [DeepSeek Harness](https://github.com/deepseek
 - Fuzzy recall injected on demand — the whole store never enters the context;
 - Four tiers: core / important / normal / faded; important memories never fade;
 - Gradual compression and forgetting at 100 / 200 / 300 / 600 days by default (editable in the panel);
-- Star-map visualization, memory manager, injection preview, cross-device sync;
+- Star-map visualization with hover previews, memory manager, injection preview, cross-device sync;
 - Optional plugin-inventory sync: the main device writes each plugin's config and the bundle list to `config/plugins.json`, and the other machine's agent installs from that list and applies the listed settings;
 - Portable settings (budgets, decay, sync rhythm) converge automatically across devices.
 

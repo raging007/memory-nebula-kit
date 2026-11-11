@@ -313,12 +313,26 @@ export function createSync({ store, dataDir, buildInventory = null, logger = con
     }
   }
 
+  function sessionsDirResolved() {
+    const configured = typeof settings().sync.sessionsDir === 'string' ? settings().sync.sessionsDir.trim() : ''
+    if (configured) return path.resolve(configured)
+    return path.join(resolveDshHome(), 'synced-sessions')
+  }
+
+  /**
+   * Copies other devices' archived sessions into the dedicated workspace folder (never into the
+   * main DSH session store unless sessionsIntoDsh is on). The folder is a separate tree, so the
+   * imported conversations do not mix with this machine's own sessions.
+   */
   async function importSessions() {
     const folder = settings().sync.folder.trim()
     if (!folder) return { ok: false, error: '未设置同步文件夹' }
-    const root = path.join(resolveDshHome(), 'sessions')
+    const targetRoot = sessionsDirResolved()
     const source = path.join(folder, 'sessions')
+    const intoDsh = settings().sync.sessionsIntoDsh === true
+    const dshRoot = path.join(resolveDshHome(), 'sessions')
     const imported = []
+    const installed = []
     const skipped = []
     try {
       for (const device of await listDir(source)) {
@@ -327,21 +341,51 @@ export function createSync({ store, dataDir, buildInventory = null, logger = con
           if (!workspace.isDirectory() || !assertSafe(workspace.name)) continue
           for (const session of await listDir(path.join(source, device.name, workspace.name))) {
             if (!session.isDirectory() || !assertSafe(session.name)) continue
-            const from = path.join(source, device.name, workspace.name, session.name, SESSION_FILE)
-            if (!(await statOrNull(from))) continue
-            const toDir = path.join(root, workspace.name, session.name)
+            const fromDir = path.join(source, device.name, workspace.name, session.name)
+            const from = path.join(fromDir, SESSION_FILE)
+            const info = await statOrNull(from)
+            if (!info) continue
+            const toDir = path.join(targetRoot, 'sessions', device.name, workspace.name, session.name)
             const to = path.join(toDir, SESSION_FILE)
-            if (await statOrNull(to)) {
+            const existing = await statOrNull(to)
+            if (existing && existing.size === info.size) {
               skipped.push(session.name)
-              continue
+            } else {
+              await ensureDir(toDir)
+              await fsp.copyFile(from, to)
+              const meta = await readJson(path.join(fromDir, 'meta.json'), null)
+              imported.push({ session: session.name, workspace: workspace.name, device: meta?.deviceName ?? device.name, file: to })
             }
-            await ensureDir(toDir)
-            await fsp.copyFile(from, to)
-            imported.push({ session: session.name, workspace: workspace.name, from: device.name })
+            if (intoDsh) {
+              const dshDir = path.join(dshRoot, workspace.name, session.name)
+              const dshFile = path.join(dshDir, SESSION_FILE)
+              if (!(await statOrNull(dshFile))) {
+                await ensureDir(dshDir)
+                await fsp.copyFile(from, dshFile)
+                installed.push({ session: session.name, workspace: workspace.name })
+              }
+            }
           }
         }
       }
-      return { ok: true, imported, skipped: skipped.length, restartRequired: imported.length > 0 }
+      if (imported.length) {
+        await ensureDir(targetRoot)
+        await writeJsonAtomic(path.join(targetRoot, 'import-index.json'), {
+          at: Date.now(),
+          device: store.device.name,
+          folder: targetRoot,
+          sessions: imported.slice(-500),
+        })
+      }
+      return {
+        ok: true,
+        imported,
+        installed,
+        skipped: skipped.length,
+        folder: targetRoot,
+        intoDsh,
+        restartRequired: intoDsh && installed.length > 0,
+      }
     } catch (error) {
       return { ok: false, error: errorText(error), imported }
     }
@@ -467,6 +511,20 @@ export function createSync({ store, dataDir, buildInventory = null, logger = con
         report.git = { ok: false, error: '同步文件夹不是 git 仓库：先把数据仓库 clone 到这里' }
         return false
       }
+      if ((await statOrNull(path.join(folder, '.git', 'rebase-merge'))) || (await statOrNull(path.join(folder, '.git', 'rebase-apply')))) {
+        try {
+          await gitRun(folder, ['rebase', '--abort'])
+        } catch {
+          /* an interrupted rebase left the branch detached; abort restores it */
+        }
+      }
+      if (!(await hasUpstream(folder))) {
+        try {
+          await gitRun(folder, ['branch', '--set-upstream-to=origin/main', 'main'])
+        } catch {
+          /* origin/main may not exist yet */
+        }
+      }
       if (!(await hasUpstream(folder))) {
         report.git = { ok: true, pulled: false, note: '仓库没有上游分支，跳过 pull' }
         return true
@@ -504,11 +562,19 @@ export function createSync({ store, dataDir, buildInventory = null, logger = con
         committed = true
       }
       let pushed = false
+      let pushError = null
       if (await hasUpstream(folder)) {
         await gitRun(folder, ['push'])
         pushed = true
+      } else {
+        try {
+          await gitRun(folder, ['push', '-u', 'origin', 'main'])
+          pushed = true
+        } catch (error) {
+          pushError = errorText(error)
+        }
       }
-      report.git = { ...(report.git || {}), ok: true, committed, pushed }
+      report.git = { ...(report.git || {}), ok: !pushError, committed, pushed, ...(pushError ? { pushError } : {}) }
     } catch (error) {
       report.git = { ...(report.git || {}), ok: false, error: errorText(error) }
     }
@@ -600,6 +666,9 @@ export function createSync({ store, dataDir, buildInventory = null, logger = con
       peers: current.peers.map((peer) => ({ name: peer.name, url: peer.url, hasToken: Boolean(peer.token) })),
       token: current.token,
       sessions: current.sessions,
+      sessionsDir: current.sessionsDir,
+      sessionsDirResolved: sessionsDirResolved(),
+      sessionsIntoDsh: current.sessionsIntoDsh === true,
       autoImportSessions: current.autoImportSessions,
       plugins: current.plugins,
       sharePackage: current.sharePackage,

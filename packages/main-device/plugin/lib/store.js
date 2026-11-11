@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import {
   DAY_MS,
   clamp,
+  clip,
   deviceName,
   errorText,
   newId,
@@ -53,6 +54,8 @@ export const DEFAULT_SETTINGS = {
     git: false,
     syncConfig: false,
     shareInventory: false,
+    sessionsDir: '',
+    sessionsIntoDsh: false,
   },
 }
 
@@ -100,6 +103,8 @@ function normalizeSettings(raw) {
       git: sync.git === true,
       syncConfig: sync.syncConfig === true,
       shareInventory: sync.shareInventory === true,
+      sessionsDir: typeof sync.sessionsDir === 'string' ? sync.sessionsDir : '',
+      sessionsIntoDsh: sync.sessionsIntoDsh === true,
     },
   }
 }
@@ -488,6 +493,8 @@ function buildStore({ dataDir, config = {}, logger = console } = {}) {
       ageDays: Math.max(0, (now - Math.max(record.updatedAt, record.lastAccessAt ?? 0)) / DAY_MS),
       accessCount: record.accessCount,
       decayStage: record.decayStage,
+      createdAt: record.createdAt,
+      preview: trimTo(record.summary || record.text, 160),
       label: trimTo(record.summary || record.text, 24),
       pinned: record.pinned,
     }))
